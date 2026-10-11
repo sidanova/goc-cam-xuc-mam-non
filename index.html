@@ -11,8 +11,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Canvas Confetti for celebratory reactions -->
+  <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Face Detection Library (face-api.js nhẹ qua CDN) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 
   <style>
     body {
@@ -21,42 +24,22 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    
-    .bubble-font {
-      font-family: 'Comfortaa', cursive;
-    }
-
-    /* Bouncy pulse animations */
+    .bubble-font { font-family: 'Comfortaa', cursive; }
     @keyframes pulse-ring {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
       70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
-    .animate-recording {
-      animation: pulse-ring 1.4s infinite cubic-bezier(0.4, 0, 0.6, 1);
-    }
-
+    .animate-recording { animation: pulse-ring 1.4s infinite cubic-bezier(0.4, 0, 0.6, 1); }
     @keyframes soundwave {
       0%, 100% { height: 10px; }
       50% { height: 50px; }
     }
-    .wave-bar {
-      animation: soundwave 1s ease-in-out infinite;
-    }
+    .wave-bar { animation: soundwave 1s ease-in-out infinite; }
     .wave-bar:nth-child(2) { animation-delay: 0.15s; }
     .wave-bar:nth-child(3) { animation-delay: 0.3s; }
     .wave-bar:nth-child(4) { animation-delay: 0.45s; }
     .wave-bar:nth-child(5) { animation-delay: 0.6s; }
-
-    /* Custom scrollbar for friendly look */
-    ::-webkit-scrollbar {
-      height: 8px;
-      width: 8px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #fcd34d;
-      border-radius: 9999px;
-    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-amber-100 via-rose-50 to-sky-100 min-h-screen text-slate-800 flex flex-col justify-between overflow-x-hidden p-3 sm:p-5">
@@ -74,8 +57,7 @@
       </div>
     </div>
 
-    <!-- Group Action Buttons for the Teacher -->
-    <div class="flex items-center gap-2 sm:gap-3 ml-auto">
+    <div class="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap">
       <button id="btnPlayAll" onclick="playAllRecordings()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 active:scale-95 transition-all text-white font-bold py-2 px-4 sm:py-3 sm:px-5 rounded-2xl shadow-md text-sm sm:text-base border-2 border-emerald-300">
         <span class="text-xl">📢</span>
         <span>Phát Lần Lượt Cả Lớp</span>
@@ -85,14 +67,16 @@
         <span class="text-xl">➕</span>
         <span class="hidden sm:inline">Thêm Bé</span>
       </button>
+
+      <button onclick="confirmResetAll()" title="Xóa bản ghi cũ để bắt đầu buổi mới" class="flex items-center gap-1.5 bg-rose-100 hover:bg-rose-200 active:scale-95 transition-all text-rose-700 font-bold py-2 px-3 sm:py-3 sm:px-4 rounded-2xl shadow-md text-sm sm:text-base border-2 border-rose-300">
+        <span class="text-lg">🔄</span>
+        <span class="hidden sm:inline">Buổi Mới</span>
+      </button>
     </div>
   </header>
 
   <main class="w-full max-w-6xl mx-auto my-4 flex-1">
-    <!-- Kids Cards Grid: Responsive 1 col (mobile), 2 cols (tablet portrait), 4 cols (tablet landscape/desktop) -->
-    <div id="kidsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-      <!-- Dynamically generated kid cards will be inserted here -->
-    </div>
+    <div id="kidsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5"></div>
   </main>
 
   <div class="w-full max-w-4xl mx-auto bg-amber-200/80 border-2 border-dashed border-amber-400 rounded-2xl p-3 sm:p-4 text-center my-2 shadow-sm">
@@ -103,11 +87,38 @@
     </span>
   </div>
 
+  <!-- MODAL: CAMERA CHỤP HÌNH VÀ TỰ CẮT MẶT -->
+  <div id="cameraModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border-4 border-amber-400 flex flex-col items-center">
+      <h3 class="bubble-font text-xl font-bold text-amber-900 mb-2">📸 Chụp Ảnh Khuôn Mặt Bé</h3>
+      <p class="text-xs text-slate-500 mb-3 text-center">Để mặt bé vào giữa khung hình, hệ thống sẽ tự động phóng to và cắt mặt bé nhé!</p>
+
+      <!-- Video Feed -->
+      <div class="relative w-64 h-64 rounded-2xl overflow-hidden border-4 border-dashed border-amber-300 bg-black flex items-center justify-center mb-4 shadow-inner">
+        <video id="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        <div id="cameraLoading" class="absolute text-white text-xs bg-slate-800/80 px-3 py-1.5 rounded-full flex items-center gap-2">
+          <span>Đang mở camera...</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2 w-full">
+        <button onclick="closeCameraModal()" class="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl active:scale-95 transition">Hủy</button>
+        <button id="btnSnapPhoto" onclick="captureAndAutoCrop()" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shadow-md active:scale-95 transition flex items-center justify-center gap-2">
+          <span>📷 Chụp Ngay</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas ẩn để xử lý ảnh -->
+  <canvas id="hiddenCanvas" class="hidden"></canvas>
+
   <!-- MODAL: Fullscreen Active Recording Session -->
   <div id="recordingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-4 border-rose-400 text-center relative flex flex-col items-center">
       
-      <div id="activeAvatar" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-5xl sm:text-6xl shadow-inner border-4 border-amber-300 mb-2">
+      <!-- Avatar hiển thị ảnh chụp hoặc emoji -->
+      <div id="activeAvatar" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-5xl sm:text-6xl shadow-inner border-4 border-amber-300 mb-2 overflow-hidden bg-white">
         👧
       </div>
 
@@ -121,7 +132,6 @@
         <strong class="text-rose-600 text-base sm:text-lg">"Tớ đang ở màu... vì..."</strong>
       </p>
 
-      <!-- Animated Sound Wave Visualizer Mock -->
       <div id="soundWave" class="flex items-center justify-center gap-2 h-16 w-full mb-6">
         <div class="wave-bar w-3 bg-rose-500 rounded-full"></div>
         <div class="wave-bar w-3 bg-amber-500 rounded-full"></div>
@@ -132,7 +142,6 @@
 
       <div class="text-2xl font-black text-rose-600 mb-6 font-mono" id="recTimer">00:00</div>
 
-      <!-- Action Button inside Modal: Finish Recording -->
       <button id="btnStopRecord" onclick="stopActiveRecording()" class="w-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-extrabold text-lg sm:text-xl py-4 rounded-2xl shadow-xl flex items-center justify-center gap-3 border-b-4 border-rose-700 animate-pulse">
         <span class="w-5 h-5 bg-white rounded-sm"></span>
         <span>XONG RỒI! BẤM DỪNG LẠI</span>
@@ -151,12 +160,12 @@
       </div>
 
       <div class="mb-4">
-        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Chọn Icon Avatar</label>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Chọn Icon Avatar Mặc Định</label>
         <div class="flex justify-around bg-slate-100 p-2 rounded-xl text-2xl" id="avatarPicker">
           <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition selected-avatar ring-2 ring-amber-400 bg-white" onclick="selectAvatar('🧒')">🧒</button>
           <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('👧')">👧</button>
           <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('👶')">👶</button>
-          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('🐻')">🐻</button>
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('🐱')">🐱</button>
           <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('🐰')">🐰</button>
         </div>
       </div>
@@ -168,33 +177,206 @@
     </div>
   </div>
 
-  <!-- Audio Player hidden instance -->
   <audio id="globalAudioPlayer" class="hidden"></audio>
 
-  <!-- Notification Toast message box -->
+  <!-- Notification Toast -->
   <div id="toastBox" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white font-bold py-2.5 px-6 rounded-full shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 text-sm sm:text-base">
     <span id="toastIcon">✨</span>
     <span id="toastText">Thông báo!</span>
   </div>
 
   <script>
-    // Color palettes representing emotions
     const COLOR_THEMES = [
-      { id: 'yellow', name: 'Màu Vàng (Vui vẻ)', bg: 'bg-amber-400', border: 'border-amber-400', light: 'bg-amber-50', text: 'text-amber-800', dot: '#f59e0b' },
-      { id: 'green', name: 'Màu Xanh Lá (Bình an)', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-800', dot: '#10b981' },
-      { id: 'blue', name: 'Màu Xanh Dương (Buồn / Lặng)', bg: 'bg-sky-500', border: 'border-sky-500', light: 'bg-sky-50', text: 'text-sky-800', dot: '#0ea5e9' },
-      { id: 'red', name: 'Màu Đỏ (Tức giận / Sôi nổi)', bg: 'bg-rose-500', border: 'border-rose-500', light: 'bg-rose-50', text: 'text-rose-800', dot: '#f43f5e' },
-      { id: 'purple', name: 'Màu Tím (Mơ mộng)', bg: 'bg-purple-500', border: 'border-purple-500', light: 'bg-purple-50', text: 'text-purple-800', dot: '#a855f7' }
+      { id: 'yellow', name: 'Màu Vàng (Vui vẻ)', bg: 'bg-amber-400', border: 'border-amber-400', light: 'bg-amber-50', dot: '#f59e0b' },
+      { id: 'green', name: 'Màu Xanh Lá (Bình an)', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50', dot: '#10b981' },
+      { id: 'blue', name: 'Màu Xanh Dương (Buồn / Lặng)', bg: 'bg-sky-500', border: 'border-sky-500', light: 'bg-sky-50', dot: '#0ea5e9' },
+      { id: 'red', name: 'Màu Đỏ (Tức giận / Sôi nổi)', bg: 'bg-rose-500', border: 'border-rose-500', light: 'bg-rose-50', dot: '#f43f5e' },
+      { id: 'purple', name: 'Màu Tím (Mơ mộng)', bg: 'bg-purple-500', border: 'border-purple-500', light: 'bg-purple-50', dot: '#a855f7' }
     ];
 
-    // Initial group of 3-4 children
-    let kids = [
-      { id: 1, name: 'Bé Bông', avatar: '👧', colorIndex: 0, audioBlob: null, audioUrl: null, duration: 0 },
-      { id: 2, name: 'Bé Bo', avatar: '🧒', colorIndex: 1, audioBlob: null, audioUrl: null, duration: 0 },
-      { id: 3, name: 'Bé Miu', avatar: '🐱', colorIndex: 2, audioBlob: null, audioUrl: null, duration: 0 },
-      { id: 4, name: 'Bé Tít', avatar: '🐰', colorIndex: 3, audioBlob: null, audioUrl: null, duration: 0 },
+    const DEFAULT_KIDS = [
+      { id: 1, name: 'Bé Bông', avatar: '👧', photoUrl: null, colorIndex: 0, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 2, name: 'Bé Bo', avatar: '🧒', photoUrl: null, colorIndex: 1, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 3, name: 'Bé Miu', avatar: '🐱', photoUrl: null, colorIndex: 2, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 4, name: 'Bé Tít', avatar: '🐰', photoUrl: null, colorIndex: 3, audioBlob: null, audioUrl: null, duration: 0 },
     ];
 
+    let kids = JSON.parse(JSON.stringify(DEFAULT_KIDS));
+
+    // --- INDEXEDDB SETUP ---
+    const DB_NAME = "KidsEmotionsPersistDB";
+    const DB_VERSION = 2;
+    const STORE_NAME = "kids_store";
+    let db = null;
+
+    function initDB() {
+      return new Promise((resolve) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const dbInstance = e.target.result;
+          if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
+            dbInstance.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = (e) => {
+          db = e.target.result;
+          resolve();
+        };
+        req.onerror = () => resolve();
+      });
+    }
+
+    function saveKidToDB(kid) {
+      if (!db) return;
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put({
+        id: kid.id,
+        name: kid.name,
+        avatar: kid.avatar,
+        photoUrl: kid.photoUrl,
+        colorIndex: kid.colorIndex,
+        audioBlob: kid.audioBlob,
+        duration: kid.duration
+      });
+    }
+
+    function deleteKidFromDB(kidId) {
+      if (!db) return;
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      tx.objectStore(STORE_NAME).delete(kidId);
+    }
+
+    async function loadAllKidsFromDB() {
+      if (!db) return;
+      return new Promise((resolve) => {
+        const tx = db.transaction([STORE_NAME], 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const stored = req.result;
+          if (stored && stored.length > 0) {
+            kids = stored.map(s => ({
+              ...s,
+              audioUrl: s.audioBlob ? URL.createObjectURL(s.audioBlob) : null
+            }));
+          }
+          resolve();
+        };
+        req.onerror = () => resolve();
+      });
+    }
+
+    // --- CAMERA & AUTO-CROP FACE SETUP ---
+    let cameraStream = null;
+    let cameraTargetKidId = null;
+    let isModelLoaded = false;
+
+    async function loadFaceModel() {
+      try {
+        if (typeof faceapi !== 'undefined') {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+          isModelLoaded = true;
+        }
+      } catch (e) {
+        console.warn("Face model CDN loading fallback:", e);
+      }
+    }
+
+    async function openCameraForKid(kidId) {
+      cameraTargetKidId = kidId;
+      const modal = document.getElementById('cameraModal');
+      const video = document.getElementById('cameraVideo');
+      const loading = document.getElementById('cameraLoading');
+      
+      modal.classList.remove('hidden');
+      loading.classList.remove('hidden');
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
+          audio: false
+        });
+        video.srcObject = cameraStream;
+        video.onloadedmetadata = () => {
+          loading.classList.add('hidden');
+        };
+      } catch (err) {
+        alert("Không thể mở Camera! Cô hãy kiểm tra quyền truy cập Camera của trình duyệt nhé.");
+        closeCameraModal();
+      }
+    }
+
+    function closeCameraModal() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      document.getElementById('cameraModal').classList.add('hidden');
+    }
+
+    async function captureAndAutoCrop() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('hiddenCanvas');
+      const ctx = canvas.getContext('2d');
+      const kid = kids.find(k => k.id === cameraTargetKidId);
+      if (!kid) return;
+
+      const vW = video.videoWidth || 640;
+      const vH = video.videoHeight || 480;
+
+      // 1. Tìm vị trí khuôn mặt bằng TinyFaceDetector
+      let faceBox = null;
+      if (typeof faceapi !== 'undefined' && isModelLoaded) {
+        try {
+          const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions());
+          if (detection) {
+            faceBox = detection.box;
+          }
+        } catch (e) {
+          console.warn("Lỗi nhận diện khuôn mặt:", e);
+        }
+      }
+
+      // Kích thước avatar vuông 250x250
+      const CROP_SIZE = 250;
+      canvas.width = CROP_SIZE;
+      canvas.height = CROP_SIZE;
+
+      if (faceBox) {
+        // Có mặt: Mở rộng thêm 30% xung quanh mặt để lấy tóc & cằm
+        const padding = faceBox.width * 0.35;
+        let cropX = faceBox.x - padding;
+        let cropY = faceBox.y - padding * 1.2;
+        let cropW = faceBox.width + padding * 2;
+        let cropH = faceBox.height + padding * 2;
+
+        // Giữ tỉ lệ vuông
+        const maxDim = Math.max(cropW, cropH);
+        cropX = Math.max(0, cropX - (maxDim - cropW) / 2);
+        cropY = Math.max(0, cropY - (maxDim - cropH) / 2);
+        cropW = Math.min(vW - cropX, maxDim);
+        cropH = Math.min(vH - cropY, maxDim);
+
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, CROP_SIZE, CROP_SIZE);
+      } else {
+        // Nếu không phát hiện được mặt: Cắt vuông chính giữa khung hình
+        const minDim = Math.min(vW, vH);
+        const startX = (vW - minDim) / 2;
+        const startY = (vH - minDim) / 2;
+        ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, CROP_SIZE, CROP_SIZE);
+      }
+
+      // Lưu ảnh base64 vào kid và IndexedDB
+      kid.photoUrl = canvas.toDataURL('image/jpeg', 0.85);
+      saveKidToDB(kid);
+
+      closeCameraModal();
+      renderKidsGrid();
+      showToast(`Đã cập nhật ảnh đại diện của ${kid.name}!`, '📸');
+    }
+
+    // --- AUDIO & UI MANAGEMENT ---
     let mediaRecorder = null;
     let audioChunks = [];
     let currentRecordingKidId = null;
@@ -202,7 +384,6 @@
     let timerInterval = null;
     let selectedModalAvatar = '🧒';
 
-    // Playing sequential queue state
     let isPlayingAll = false;
     let playAllQueue = [];
     let currentPlayingKidId = null;
@@ -212,7 +393,7 @@
       grid.innerHTML = '';
 
       kids.forEach((kid) => {
-        const theme = COLOR_THEMES[kid.colorIndex];
+        const theme = COLOR_THEMES[kid.colorIndex] || COLOR_THEMES[0];
         const hasRecording = !!kid.audioUrl;
         const isCurrentPlaying = currentPlayingKidId === kid.id;
 
@@ -222,12 +403,17 @@
         }`;
 
         card.innerHTML = `
-          <!-- Header of card with delete & avatar -->
+          <!-- Header with Avatar / Real Photo & Change Photo Button -->
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-              <span class="text-4xl sm:text-5xl p-2 bg-white rounded-2xl shadow-inner border border-slate-200">
-                ${kid.avatar}
-              </span>
+              <div class="relative group cursor-pointer" onclick="openCameraForKid(${kid.id})" title="Nhấn để chụp lại ảnh">
+                ${
+                  kid.photoUrl 
+                    ? `<img src="${kid.photoUrl}" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow border-2 border-white ring-2 ring-amber-300" />`
+                    : `<span class="text-4xl sm:text-5xl p-2 bg-white rounded-2xl shadow-inner border border-slate-200 inline-block">${kid.avatar}</span>`
+                }
+                <span class="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 p-1 rounded-full text-xs shadow-md border border-white">📷</span>
+              </div>
               <div>
                 <h4 class="text-xl sm:text-2xl font-extrabold text-slate-800 bubble-font leading-tight">${kid.name}</h4>
                 <div class="text-xs font-bold text-slate-500 flex items-center gap-1 mt-0.5">
@@ -237,27 +423,24 @@
               </div>
             </div>
 
-            <!-- Remove kid button (only show if more than 2 kids) -->
             ${kids.length > 2 ? `
-              <button onclick="removeKid(${kid.id})" title="Xoá bé" class="text-slate-300 hover:text-rose-500 p-1 rounded-full text-lg transition">
-                ✕
-              </button>
+              <button onclick="removeKid(${kid.id})" title="Xoá bé" class="text-slate-300 hover:text-rose-500 p-1 rounded-full text-lg transition">✕</button>
             ` : ''}
           </div>
 
-          <!-- Color selection palette for the kid -->
+          <!-- Color selection palette -->
           <div class="mb-4">
             <span class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1">Bé chọn màu tâm trạng:</span>
             <div class="flex items-center justify-between gap-1 bg-white/70 p-1.5 rounded-2xl border border-slate-200">
               ${COLOR_THEMES.map((c, idx) => `
-                <button onclick="changeKidColor(${kid.id}, ${idx})" 
-                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-full ${c.bg} transition-all transform ${kid.colorIndex === idx ? 'scale-110 ring-4 ring-slate-800' : 'opacity-70 hover:opacity-100'}">
+                <button onclick="changeKidColor(${kid.id},${idx})" 
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-full ${c.bg} transition-all transform${kid.colorIndex === idx ? 'scale-110 ring-4 ring-slate-800' : 'opacity-70 hover:opacity-100'}">
                 </button>
               `).join('')}
             </div>
           </div>
 
-          <!-- Recording status indicator / sound length -->
+          <!-- Recording status indicator -->
           <div class="bg-white/90 rounded-2xl p-3 border border-slate-200 mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-xl">${hasRecording ? '🎵' : '💤'}</span>
@@ -274,9 +457,8 @@
             ` : ''}
           </div>
 
-          <!-- Bottom Big Touch Actions -->
+          <!-- Bottom Touch Actions -->
           <div class="grid grid-cols-2 gap-2 mt-auto">
-            <!-- Record Button -->
             <button onclick="startKidRecording(${kid.id})" 
                     class="flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl font-black text-sm sm:text-base text-white shadow-md active:scale-95 transition ${
                       hasRecording ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600 animate-bounce'
@@ -285,7 +467,6 @@
               <span>${hasRecording ? 'Thu Lại' : 'Nói Vào'}</span>
             </button>
 
-            <!-- Playback Button -->
             <button onclick="playSingleKid(${kid.id})" 
                     ${!hasRecording ? 'disabled' : ''}
                     class="flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl font-black text-sm sm:text-base shadow-md transition ${
@@ -314,9 +495,7 @@
         mediaRecorder = new MediaRecorder(stream);
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunks.push(event.data);
-          }
+          if (event.data.size > 0) audioChunks.push(event.data);
         };
 
         mediaRecorder.onstop = () => {
@@ -328,7 +507,8 @@
           targetKid.audioUrl = audioUrl;
           targetKid.duration = durationSeconds;
 
-          // Release mic stream
+          saveKidToDB(targetKid);
+
           stream.getTracks().forEach(track => track.stop());
 
           renderKidsGrid();
@@ -339,15 +519,22 @@
         mediaRecorder.start();
         recordStartTime = Date.now();
 
-        // Setup active recording modal details
+        // Cập nhật thông tin trong modal
         document.getElementById('activeKidName').innerText = targetKid.name;
-        document.getElementById('activeAvatar').innerText = targetKid.avatar;
-        const color = COLOR_THEMES[targetKid.colorIndex];
+        
+        // Avatar trong modal (hiện ảnh chụp nếu có)
+        const activeAvatarEl = document.getElementById('activeAvatar');
+        if (targetKid.photoUrl) {
+          activeAvatarEl.innerHTML = `<img src="${targetKid.photoUrl}" class="w-full h-full object-cover" />`;
+        } else {
+          activeAvatarEl.innerHTML = targetKid.avatar;
+        }
+
+        const color = COLOR_THEMES[targetKid.colorIndex] || COLOR_THEMES[0];
         const badge = document.getElementById('activeColorBadge');
         badge.innerText = color.name;
         badge.className = `inline-block px-4 py-1.5 rounded-full text-white font-bold text-sm my-2 shadow ${color.bg}`;
 
-        // Reset and launch timer
         const timerElem = document.getElementById('recTimer');
         timerElem.innerText = '00:00';
         clearInterval(timerInterval);
@@ -358,7 +545,6 @@
           timerElem.innerText = `${mins}:${secs}`;
         }, 1000);
 
-        // Display modal
         document.getElementById('recordingModal').classList.remove('hidden');
 
       } catch (err) {
@@ -381,7 +567,6 @@
       const kid = kids.find(k => k.id === kidId);
       if (!kid || !kid.audioUrl) return;
 
-      // If currently playing this kid, stop it
       if (currentPlayingKidId === kid.id) {
         audioPlayer.pause();
         audioPlayer.currentTime = 0;
@@ -403,9 +588,7 @@
     }
 
     function playAllRecordings() {
-      // Find all kids who have an audio recording
       const recordedKids = kids.filter(k => k.audioUrl);
-
       if (recordedKids.length === 0) {
         showToast('Chưa có bé nào thu âm cả, cô hãy mời bé nói nhé!', '🧸');
         return;
@@ -434,10 +617,7 @@
       audioPlayer.play();
 
       audioPlayer.onended = () => {
-        // Short pause between kids for natural pacing
-        setTimeout(() => {
-          playNextInQueue();
-        }, 800);
+        setTimeout(() => playNextInQueue(), 800);
       };
     }
 
@@ -445,12 +625,14 @@
       const kid = kids.find(k => k.id === kidId);
       if (kid) {
         kid.colorIndex = colorIndex;
+        saveKidToDB(kid);
         renderKidsGrid();
       }
     }
 
     function removeKid(kidId) {
       kids = kids.filter(k => k.id !== kidId);
+      deleteKidFromDB(kidId);
       renderKidsGrid();
     }
 
@@ -485,29 +667,46 @@
       const newId = Date.now();
       const randomColorIndex = Math.floor(Math.random() * COLOR_THEMES.length);
 
-      kids.push({
+      const newKid = {
         id: newId,
         name: nameInput,
         avatar: selectedModalAvatar,
+        photoUrl: null,
         colorIndex: randomColorIndex,
         audioBlob: null,
         audioUrl: null,
         duration: 0
-      });
+      };
+
+      kids.push(newKid);
+      saveKidToDB(newKid);
 
       closeAddKidModal();
       renderKidsGrid();
       showToast(`Đã thêm ${nameInput} vào lớp!`, '🎈');
     }
 
+    function confirmResetAll() {
+      if (confirm("Cô có chắc muốn xóa tất cả bản ghi để bắt đầu buổi mới cho các bé khác không?")) {
+        if (db) {
+          const tx = db.transaction([STORE_NAME], 'readwrite');
+          tx.objectStore(STORE_NAME).clear();
+          tx.oncomplete = () => {
+            kids = JSON.parse(JSON.stringify(DEFAULT_KIDS));
+            kids.forEach(k => saveKidToDB(k));
+            renderKidsGrid();
+            showToast('Đã làm mới danh sách cho buổi học mới!', '✨');
+          };
+        }
+      }
+    }
+
     function showToast(message, icon = '✨') {
       const toast = document.getElementById('toastBox');
       document.getElementById('toastText').innerText = message;
       document.getElementById('toastIcon').innerText = icon;
-
       toast.classList.remove('opacity-0', 'pointer-events-none');
       toast.classList.add('opacity-100');
-
       setTimeout(() => {
         toast.classList.remove('opacity-100');
         toast.classList.add('opacity-0', 'pointer-events-none');
@@ -516,17 +715,15 @@
 
     function showCelebration() {
       if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
       }
     }
 
-    // Initialize application on page load
-    window.onload = () => {
+    window.onload = async () => {
+      await initDB();
+      await loadAllKidsFromDB();
       renderKidsGrid();
+      loadFaceModel(); // Tải mô hình nhận diện khuôn mặt chạy ngầm
     };
   </script>
 </body>
