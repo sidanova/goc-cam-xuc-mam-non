@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Góc Cảm Xúc Của Bé - Tớ Đang Ở Màu Nào?</title>
+  
+  <!-- Google Fonts & Tailwind CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Canvas Confetti for celebratory reactions -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Nunito', 'Comfortaa', sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    .bubble-font {
+      font-family: 'Comfortaa', cursive;
+    }
+
+    /* Bouncy pulse animations */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .animate-recording {
+      animation: pulse-ring 1.4s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+
+    @keyframes soundwave {
+      0%, 100% { height: 10px; }
+      50% { height: 50px; }
+    }
+    .wave-bar {
+      animation: soundwave 1s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.6s; }
+
+    /* Custom scrollbar for friendly look */
+    ::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #fcd34d;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-amber-100 via-rose-50 to-sky-100 min-h-screen text-slate-800 flex flex-col justify-between overflow-x-hidden p-3 sm:p-5">
+
+  <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 bg-white/80 backdrop-blur-md px-4 py-3 sm:px-6 sm:py-4 rounded-3xl shadow-lg border-2 border-amber-200">
+    <div class="flex items-center gap-3">
+      <div class="text-4xl sm:text-5xl animate-bounce">🎨</div>
+      <div>
+        <h1 class="bubble-font text-xl sm:text-2xl md:text-3xl font-extrabold text-amber-800 tracking-tight">
+          Góc Cảm Xúc Bé Yêu
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-500 font-semibold">
+          Cô cùng bé sẻ chia: <span class="text-rose-500 font-bold">"Tớ đang ở màu... vì..."</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Group Action Buttons for the Teacher -->
+    <div class="flex items-center gap-2 sm:gap-3 ml-auto">
+      <button id="btnPlayAll" onclick="playAllRecordings()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 active:scale-95 transition-all text-white font-bold py-2 px-4 sm:py-3 sm:px-5 rounded-2xl shadow-md text-sm sm:text-base border-2 border-emerald-300">
+        <span class="text-xl">📢</span>
+        <span>Phát Lần Lượt Cả Lớp</span>
+      </button>
+
+      <button onclick="openAddKidModal()" class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 active:scale-95 transition-all text-amber-950 font-bold py-2 px-3 sm:py-3 sm:px-4 rounded-2xl shadow-md text-sm sm:text-base border-2 border-amber-300">
+        <span class="text-xl">➕</span>
+        <span class="hidden sm:inline">Thêm Bé</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="w-full max-w-6xl mx-auto my-4 flex-1">
+    <!-- Kids Cards Grid: Responsive 1 col (mobile), 2 cols (tablet portrait), 4 cols (tablet landscape/desktop) -->
+    <div id="kidsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <!-- Dynamically generated kid cards will be inserted here -->
+    </div>
+  </main>
+
+  <div class="w-full max-w-4xl mx-auto bg-amber-200/80 border-2 border-dashed border-amber-400 rounded-2xl p-3 sm:p-4 text-center my-2 shadow-sm">
+    <span class="text-2xl mr-2">🗣️</span>
+    <span class="text-slate-700 font-bold text-sm sm:text-base">Gợi ý câu mẫu cho bé:</span>
+    <span class="bubble-font text-rose-700 font-extrabold text-sm sm:text-base ml-1">
+      “Tớ đang ở <span class="underline decoration-wavy decoration-emerald-500">màu xanh lá</span> vì hôm nay tớ được chơi chung cùng bạn!”
+    </span>
+  </div>
+
+  <!-- MODAL: Fullscreen Active Recording Session -->
+  <div id="recordingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-4 border-rose-400 text-center relative flex flex-col items-center">
+      
+      <div id="activeAvatar" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-5xl sm:text-6xl shadow-inner border-4 border-amber-300 mb-2">
+        👧
+      </div>
+
+      <h3 id="activeKidName" class="text-2xl sm:text-3xl font-extrabold text-slate-800 bubble-font">Bé Bông</h3>
+      <div id="activeColorBadge" class="inline-block px-4 py-1.5 rounded-full text-white font-bold text-sm my-2 shadow">
+        Màu Vàng Vui Vẻ
+      </div>
+
+      <p class="text-slate-600 font-medium text-sm sm:text-base mt-2 mb-4">
+        Bé hãy nói thật to: <br/>
+        <strong class="text-rose-600 text-base sm:text-lg">"Tớ đang ở màu... vì..."</strong>
+      </p>
+
+      <!-- Animated Sound Wave Visualizer Mock -->
+      <div id="soundWave" class="flex items-center justify-center gap-2 h-16 w-full mb-6">
+        <div class="wave-bar w-3 bg-rose-500 rounded-full"></div>
+        <div class="wave-bar w-3 bg-amber-500 rounded-full"></div>
+        <div class="wave-bar w-3 bg-emerald-500 rounded-full"></div>
+        <div class="wave-bar w-3 bg-sky-500 rounded-full"></div>
+        <div class="wave-bar w-3 bg-purple-500 rounded-full"></div>
+      </div>
+
+      <div class="text-2xl font-black text-rose-600 mb-6 font-mono" id="recTimer">00:00</div>
+
+      <!-- Action Button inside Modal: Finish Recording -->
+      <button id="btnStopRecord" onclick="stopActiveRecording()" class="w-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-extrabold text-lg sm:text-xl py-4 rounded-2xl shadow-xl flex items-center justify-center gap-3 border-b-4 border-rose-700 animate-pulse">
+        <span class="w-5 h-5 bg-white rounded-sm"></span>
+        <span>XONG RỒI! BẤM DỪNG LẠI</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Add New Child Profile -->
+  <div id="addKidModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border-4 border-amber-300">
+      <h3 class="bubble-font text-xl font-bold text-amber-900 mb-4 text-center">🌟 Thêm Bé Vào Lớp</h3>
+      
+      <div class="mb-3">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tên của bé</label>
+        <input type="text" id="newKidName" placeholder="Ví dụ: Bé Bo, Bé Su, Minh Khôi..." class="w-full px-4 py-2.5 rounded-xl border-2 border-slate-300 focus:border-amber-400 focus:outline-none font-semibold text-slate-800" />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Chọn Icon Avatar</label>
+        <div class="flex justify-around bg-slate-100 p-2 rounded-xl text-2xl" id="avatarPicker">
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition selected-avatar ring-2 ring-amber-400 bg-white" onclick="selectAvatar('🧒')">🧒</button>
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('👧')">👧</button>
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('👶')">👶</button>
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('🐻')">🐻</button>
+          <button type="button" class="p-1 rounded-lg hover:bg-white active:scale-90 transition" onclick="selectAvatar('🐰')">🐰</button>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="closeAddKidModal()" class="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl active:scale-95 transition">Hủy</button>
+        <button onclick="confirmAddKid()" class="flex-1 py-2.5 bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold rounded-xl active:scale-95 transition">Thêm Ngay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Player hidden instance -->
+  <audio id="globalAudioPlayer" class="hidden"></audio>
+
+  <!-- Notification Toast message box -->
+  <div id="toastBox" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white font-bold py-2.5 px-6 rounded-full shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 text-sm sm:text-base">
+    <span id="toastIcon">✨</span>
+    <span id="toastText">Thông báo!</span>
+  </div>
+
+  <script>
+    // Color palettes representing emotions
+    const COLOR_THEMES = [
+      { id: 'yellow', name: 'Màu Vàng (Vui vẻ)', bg: 'bg-amber-400', border: 'border-amber-400', light: 'bg-amber-50', text: 'text-amber-800', dot: '#f59e0b' },
+      { id: 'green', name: 'Màu Xanh Lá (Bình an)', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-800', dot: '#10b981' },
+      { id: 'blue', name: 'Màu Xanh Dương (Buồn / Lặng)', bg: 'bg-sky-500', border: 'border-sky-500', light: 'bg-sky-50', text: 'text-sky-800', dot: '#0ea5e9' },
+      { id: 'red', name: 'Màu Đỏ (Tức giận / Sôi nổi)', bg: 'bg-rose-500', border: 'border-rose-500', light: 'bg-rose-50', text: 'text-rose-800', dot: '#f43f5e' },
+      { id: 'purple', name: 'Màu Tím (Mơ mộng)', bg: 'bg-purple-500', border: 'border-purple-500', light: 'bg-purple-50', text: 'text-purple-800', dot: '#a855f7' }
+    ];
+
+    // Initial group of 3-4 children
+    let kids = [
+      { id: 1, name: 'Bé Bông', avatar: '👧', colorIndex: 0, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 2, name: 'Bé Bo', avatar: '🧒', colorIndex: 1, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 3, name: 'Bé Miu', avatar: '🐱', colorIndex: 2, audioBlob: null, audioUrl: null, duration: 0 },
+      { id: 4, name: 'Bé Tít', avatar: '🐰', colorIndex: 3, audioBlob: null, audioUrl: null, duration: 0 },
+    ];
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let currentRecordingKidId = null;
+    let recordStartTime = null;
+    let timerInterval = null;
+    let selectedModalAvatar = '🧒';
+
+    // Playing sequential queue state
+    let isPlayingAll = false;
+    let playAllQueue = [];
+    let currentPlayingKidId = null;
+
+    function renderKidsGrid() {
+      const grid = document.getElementById('kidsGrid');
+      grid.innerHTML = '';
+
+      kids.forEach((kid) => {
+        const theme = COLOR_THEMES[kid.colorIndex];
+        const hasRecording = !!kid.audioUrl;
+        const isCurrentPlaying = currentPlayingKidId === kid.id;
+
+        const card = document.createElement('div');
+        card.className = `relative rounded-3xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 shadow-lg border-4 ${theme.border} ${theme.light} ${
+          isCurrentPlaying ? 'scale-105 ring-8 ring-amber-400 ring-offset-2' : 'hover:-translate-y-1'
+        }`;
+
+        card.innerHTML = `
+          <!-- Header of card with delete & avatar -->
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-4xl sm:text-5xl p-2 bg-white rounded-2xl shadow-inner border border-slate-200">
+                ${kid.avatar}
+              </span>
+              <div>
+                <h4 class="text-xl sm:text-2xl font-extrabold text-slate-800 bubble-font leading-tight">${kid.name}</h4>
+                <div class="text-xs font-bold text-slate-500 flex items-center gap-1 mt-0.5">
+                  <span class="w-3 h-3 rounded-full inline-block" style="background-color: ${theme.dot}"></span>
+                  <span>${theme.name.split(' ')[1]}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Remove kid button (only show if more than 2 kids) -->
+            ${kids.length > 2 ? `
+              <button onclick="removeKid(${kid.id})" title="Xoá bé" class="text-slate-300 hover:text-rose-500 p-1 rounded-full text-lg transition">
+                ✕
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Color selection palette for the kid -->
+          <div class="mb-4">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1">Bé chọn màu tâm trạng:</span>
+            <div class="flex items-center justify-between gap-1 bg-white/70 p-1.5 rounded-2xl border border-slate-200">
+              ${COLOR_THEMES.map((c, idx) => `
+                <button onclick="changeKidColor(${kid.id}, ${idx})" 
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-full ${c.bg} transition-all transform ${kid.colorIndex === idx ? 'scale-110 ring-4 ring-slate-800' : 'opacity-70 hover:opacity-100'}">
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Recording status indicator / sound length -->
+          <div class="bg-white/90 rounded-2xl p-3 border border-slate-200 mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${hasRecording ? '🎵' : '💤'}</span>
+              <span class="text-xs sm:text-sm font-bold ${hasRecording ? 'text-emerald-700' : 'text-slate-400'}">
+                ${hasRecording ? `Đã có giọng bé (${kid.duration}s)` : 'Chưa có giọng bé'}
+              </span>
+            </div>
+            ${isCurrentPlaying ? `
+              <div class="flex gap-1 items-end h-5">
+                <span class="w-1 bg-emerald-500 rounded-full animate-bounce h-3"></span>
+                <span class="w-1 bg-emerald-500 rounded-full animate-bounce h-5" style="animation-delay: 0.2s"></span>
+                <span class="w-1 bg-emerald-500 rounded-full animate-bounce h-4" style="animation-delay: 0.4s"></span>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Bottom Big Touch Actions -->
+          <div class="grid grid-cols-2 gap-2 mt-auto">
+            <!-- Record Button -->
+            <button onclick="startKidRecording(${kid.id})" 
+                    class="flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl font-black text-sm sm:text-base text-white shadow-md active:scale-95 transition ${
+                      hasRecording ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600 animate-bounce'
+                    }">
+              <span>🎙️</span>
+              <span>${hasRecording ? 'Thu Lại' : 'Nói Vào'}</span>
+            </button>
+
+            <!-- Playback Button -->
+            <button onclick="playSingleKid(${kid.id})" 
+                    ${!hasRecording ? 'disabled' : ''}
+                    class="flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl font-black text-sm sm:text-base shadow-md transition ${
+                      hasRecording 
+                        ? (isCurrentPlaying ? 'bg-rose-500 text-white ring-4 ring-rose-300' : 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95') 
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }">
+              <span>${isCurrentPlaying ? '⏹️ Dừng' : '▶️ Nghe'}</span>
+            </button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    async function startKidRecording(kidId) {
+      const targetKid = kids.find(k => k.id === kidId);
+      if (!targetKid) return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        currentRecordingKidId = kidId;
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const durationSeconds = Math.max(1, Math.round((Date.now() - recordStartTime) / 1000));
+
+          targetKid.audioBlob = audioBlob;
+          targetKid.audioUrl = audioUrl;
+          targetKid.duration = durationSeconds;
+
+          // Release mic stream
+          stream.getTracks().forEach(track => track.stop());
+
+          renderKidsGrid();
+          showCelebration();
+          showToast(`Đã lưu tiếng của ${targetKid.name}! 🌟`, '🎉');
+        };
+
+        mediaRecorder.start();
+        recordStartTime = Date.now();
+
+        // Setup active recording modal details
+        document.getElementById('activeKidName').innerText = targetKid.name;
+        document.getElementById('activeAvatar').innerText = targetKid.avatar;
+        const color = COLOR_THEMES[targetKid.colorIndex];
+        const badge = document.getElementById('activeColorBadge');
+        badge.innerText = color.name;
+        badge.className = `inline-block px-4 py-1.5 rounded-full text-white font-bold text-sm my-2 shadow ${color.bg}`;
+
+        // Reset and launch timer
+        const timerElem = document.getElementById('recTimer');
+        timerElem.innerText = '00:00';
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
+          const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+          const secs = String(elapsed % 60).padStart(2, '0');
+          timerElem.innerText = `${mins}:${secs}`;
+        }, 1000);
+
+        // Display modal
+        document.getElementById('recordingModal').classList.remove('hidden');
+
+      } catch (err) {
+        console.error('Error accessing microphone:', err);
+        showToast('Cô hãy cho phép quyền micro để thu âm nhé!', '⚠️');
+      }
+    }
+
+    function stopActiveRecording() {
+      clearInterval(timerInterval);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      document.getElementById('recordingModal').classList.add('hidden');
+    }
+
+    const audioPlayer = document.getElementById('globalAudioPlayer');
+
+    function playSingleKid(kidId) {
+      const kid = kids.find(k => k.id === kidId);
+      if (!kid || !kid.audioUrl) return;
+
+      // If currently playing this kid, stop it
+      if (currentPlayingKidId === kid.id) {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+        currentPlayingKidId = null;
+        renderKidsGrid();
+        return;
+      }
+
+      currentPlayingKidId = kid.id;
+      renderKidsGrid();
+
+      audioPlayer.src = kid.audioUrl;
+      audioPlayer.play();
+
+      audioPlayer.onended = () => {
+        currentPlayingKidId = null;
+        renderKidsGrid();
+      };
+    }
+
+    function playAllRecordings() {
+      // Find all kids who have an audio recording
+      const recordedKids = kids.filter(k => k.audioUrl);
+
+      if (recordedKids.length === 0) {
+        showToast('Chưa có bé nào thu âm cả, cô hãy mời bé nói nhé!', '🧸');
+        return;
+      }
+
+      playAllQueue = [...recordedKids];
+      isPlayingAll = true;
+      playNextInQueue();
+    }
+
+    function playNextInQueue() {
+      if (playAllQueue.length === 0) {
+        isPlayingAll = false;
+        currentPlayingKidId = null;
+        renderKidsGrid();
+        showCelebration();
+        showToast('Đã nghe hết các giọng nói đáng yêu rồi!', '👏');
+        return;
+      }
+
+      const nextKid = playAllQueue.shift();
+      currentPlayingKidId = nextKid.id;
+      renderKidsGrid();
+
+      audioPlayer.src = nextKid.audioUrl;
+      audioPlayer.play();
+
+      audioPlayer.onended = () => {
+        // Short pause between kids for natural pacing
+        setTimeout(() => {
+          playNextInQueue();
+        }, 800);
+      };
+    }
+
+    function changeKidColor(kidId, colorIndex) {
+      const kid = kids.find(k => k.id === kidId);
+      if (kid) {
+        kid.colorIndex = colorIndex;
+        renderKidsGrid();
+      }
+    }
+
+    function removeKid(kidId) {
+      kids = kids.filter(k => k.id !== kidId);
+      renderKidsGrid();
+    }
+
+    function openAddKidModal() {
+      document.getElementById('newKidName').value = '';
+      document.getElementById('addKidModal').classList.remove('hidden');
+    }
+
+    function closeAddKidModal() {
+      document.getElementById('addKidModal').classList.add('hidden');
+    }
+
+    function selectAvatar(emoji) {
+      selectedModalAvatar = emoji;
+      const buttons = document.querySelectorAll('#avatarPicker button');
+      buttons.forEach(btn => {
+        if (btn.innerText.includes(emoji)) {
+          btn.classList.add('ring-2', 'ring-amber-400', 'bg-white');
+        } else {
+          btn.classList.remove('ring-2', 'ring-amber-400', 'bg-white');
+        }
+      });
+    }
+
+    function confirmAddKid() {
+      const nameInput = document.getElementById('newKidName').value.trim();
+      if (!nameInput) {
+        showToast('Vui lòng nhập tên bé nhé!', '✏️');
+        return;
+      }
+
+      const newId = Date.now();
+      const randomColorIndex = Math.floor(Math.random() * COLOR_THEMES.length);
+
+      kids.push({
+        id: newId,
+        name: nameInput,
+        avatar: selectedModalAvatar,
+        colorIndex: randomColorIndex,
+        audioBlob: null,
+        audioUrl: null,
+        duration: 0
+      });
+
+      closeAddKidModal();
+      renderKidsGrid();
+      showToast(`Đã thêm ${nameInput} vào lớp!`, '🎈');
+    }
+
+    function showToast(message, icon = '✨') {
+      const toast = document.getElementById('toastBox');
+      document.getElementById('toastText').innerText = message;
+      document.getElementById('toastIcon').innerText = icon;
+
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2500);
+    }
+
+    function showCelebration() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 60,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+
+    // Initialize application on page load
+    window.onload = () => {
+      renderKidsGrid();
+    };
+  </script>
+</body>
+</html>
